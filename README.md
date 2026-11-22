@@ -1,21 +1,33 @@
 # Arena Agent Turn Notifier
 
-A small Chrome Manifest V3 extension that alerts when an Arena agent finishes a turn.
+A small Chrome Manifest V3 extension that alerts when an Arena agent finishes a turn or asks the user a question.
 
 ## What it detects
 
-On `https://arena.ai/agent/*`, the extension watches for the review panel containing:
+On `https://arena.ai/agent/*`, the extension watches for two kinds of panels.
+
+### Turn completed
+
+The review panel containing:
 
 - `Was this task successful?`
 - `Yes`
 - `No`
 - `Keep working`
 
-It checks visible text and button labels rather than Arena's generated CSS classes. Detection uses a MutationObserver, microtasks, and a one-second polling fallback, including while the tab is in the background. It avoids duplicate alerts while the same review panel remains visible.
+### Question for the user
+
+The question card Arena renders when an agent asks the user to choose between options. It is recognised by:
+
+- a visible `role="radiogroup"` with at least two options, or a visible free-text field with the `Revise options or write your own...` placeholder;
+- a visible `Skip` button (when the card has one) in the same card;
+- the question text, taken from the radiogroup `aria-label` or the card heading.
+
+The extension checks visible text, ARIA roles and placeholders rather than Arena's generated CSS classes. Detection uses a MutationObserver, microtasks, and a one-second polling fallback, including while the tab is in the background. It avoids duplicate alerts while the same panel remains visible, and alerts again when a new question replaces the previous one.
 
 ## Features
 
-- Native Chrome notification; clicking it focuses the browser window and activates the exact Arena tab that completed the turn. The tab destination is saved before the notification appears to avoid click races.
+- Native Chrome notification; clicking it focuses the browser window and activates the exact Arena tab that completed the turn or asked the question. The tab destination is saved before the notification appears to avoid click races.
 - Packaged WAV sound played through an offscreen document.
 - Independent notification and sound toggles in the extension popup.
 - Test button to verify both alert channels.
@@ -38,7 +50,7 @@ The extension uses plain JavaScript and Chrome Extension APIs. After changing fi
 
 ## Permissions
 
-- `notifications`: show the completion alert.
+- `notifications`: show the completion and question alerts.
 - `offscreen`: play the packaged sound from an offscreen document.
 - `storage`: persist preferences, delivery status, and notification tab targets.
 - Host access to `https://arena.ai/*`: observe Arena agent pages.

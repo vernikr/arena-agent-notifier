@@ -16,7 +16,7 @@ async function ensureOffscreenDocument() {
     creatingOffscreenDocument = chrome.offscreen.createDocument({
       url: "offscreen.html",
       reasons: ["AUDIO_PLAYBACK"],
-      justification: "Play a short sound when an Arena agent turn completes."
+      justification: "Play a short sound when an Arena agent turn completes or asks a question."
     }).finally(() => {
       creatingOffscreenDocument = undefined;
     });
@@ -33,12 +33,36 @@ async function playCompletionSound() {
   return true;
 }
 
-async function showCompletionNotification(details, tab) {
-  const notificationId = `arena-turn-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+function truncate(text, maxLength) {
+  const value = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function alertCopy(kind, details) {
+  if (kind === "question") {
+    return {
+      title: "Arena: агент ждёт ответа",
+      message: truncate(details.question, 180) || "Появился вопрос с вариантами ответа.",
+      contextMessage: details.title || "Arena Agent"
+    };
+  }
+
+  return {
+    title: "Arena: agent завершил ход",
+    message: "Появилась панель оценки результата.",
+    contextMessage: details.title || "Arena Agent"
+  };
+}
+
+async function showAlertNotification(kind, details, tab) {
+  const notificationId = `arena-${kind}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   const key = `notification:${notificationId}`;
+  const copy = alertCopy(kind, details);
 
   await chrome.storage.session.set({
     [key]: {
+      kind,
       tabId: tab?.id ?? null,
       windowId: tab?.windowId ?? null,
       url: details.url || tab?.url || "https://arena.ai/agent"
@@ -49,9 +73,9 @@ async function showCompletionNotification(details, tab) {
     const createdId = await chrome.notifications.create(notificationId, {
       type: "basic",
       iconUrl: "icons/icon-128.png",
-      title: "Arena: agent завершил ход",
-      message: "Появилась панель оценки результата.",
-      contextMessage: details.title || "Arena Agent",
+      title: copy.title,
+      message: copy.message,
+      contextMessage: copy.contextMessage,
       priority: 2,
       requireInteraction: true,
       silent: true
@@ -79,10 +103,10 @@ async function readNotificationDiagnostics(notificationId = null) {
   };
 }
 
-async function handleCompletion(details, tab) {
+async function handleAlert(details, tab, kind = "completion") {
   const settings = await getSettings();
   const notificationJob = settings.notificationsEnabled
-    ? showCompletionNotification(details, tab)
+    ? showAlertNotification(kind, details, tab)
     : Promise.resolve(null);
   const soundJob = settings.soundEnabled
     ? playCompletionSound()
@@ -113,6 +137,7 @@ async function handleCompletion(details, tab) {
   }
 
   const result = {
+    kind,
     notificationsEnabled: settings.notificationsEnabled,
     soundEnabled: settings.soundEnabled,
     notificationId,
@@ -123,6 +148,7 @@ async function handleCompletion(details, tab) {
 
   await chrome.storage.local.set({
     lastAlertAt: Date.now(),
+    lastAlertKind: kind,
     lastAlertUrl: details.url || tab?.url || "",
     lastAlertErrors: errors,
     lastNotificationId: notificationId,
@@ -142,6 +168,7 @@ async function getDiagnostics() {
     getSettings(),
     chrome.storage.local.get([
       "lastAlertAt",
+      "lastAlertKind",
       "lastAlertUrl",
       "lastAlertErrors",
       "lastNotificationId",
@@ -176,12 +203,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "ARENA_TURN_COMPLETED" || message?.type === "TEST_ALERT") {
-    const details = message.type === "TEST_ALERT"
+  if (
+    message?.type === "ARENA_TURN_COMPLETED" ||
+    message?.type === "ARENA_QUESTION_ASKED" ||
+    message?.type === "TEST_ALERT"
+  ) {
+    const isTest = message.type === "TEST_ALERT";
+    const kind = message.type === "ARENA_QUESTION_ASKED" ? "question" : "completion";
+    const details = isTest
       ? { title: "Проверка уведомления", url: "https://arena.ai/agent", isTest: true }
       : message;
 
-    handleCompletion(details, sender.tab).then(
+    handleAlert(details, sender.tab, kind).then(
       (result) => sendResponse({ ok: true, ...result }),
       (error) => {
         console.error("[Arena notifier] Alert delivery failed:", error);
