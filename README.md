@@ -15,7 +15,7 @@ It checks visible text and button labels rather than Arena's generated CSS class
 
 ## Features
 
-- Native Chrome notification; clicking it returns to the corresponding Arena tab.
+- Native Chrome notification; clicking it focuses the browser window and activates the exact Arena tab that completed the turn. The tab destination is saved before the notification appears to avoid click races.
 - Packaged WAV sound played through an offscreen document.
 - Independent notification and sound toggles in the extension popup.
 - Test button to verify both alert channels.

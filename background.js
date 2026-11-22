@@ -33,25 +33,34 @@ async function playCompletionSound() {
 }
 
 async function showCompletionNotification(details, tab) {
-  const notificationId = `arena-turn-${Date.now()}`;
-  await chrome.notifications.create(notificationId, {
-    type: "basic",
-    iconUrl: "icons/icon-128.png",
-    title: "Arena: agent завершил ход",
-    message: "Появилась панель оценки результата.",
-    contextMessage: details.title || "Arena Agent",
-    priority: 2,
-    requireInteraction: false,
-    silent: true
-  });
+  const notificationId = `arena-turn-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const key = `notification:${notificationId}`;
 
+  // Save the destination before displaying the notification, so an immediate
+  // click can never race the storage write.
   await chrome.storage.session.set({
-    [`notification:${notificationId}`]: {
+    [key]: {
       tabId: tab?.id ?? null,
       windowId: tab?.windowId ?? null,
       url: details.url || tab?.url || "https://arena.ai/agent"
     }
   });
+
+  try {
+    await chrome.notifications.create(notificationId, {
+      type: "basic",
+      iconUrl: "icons/icon-128.png",
+      title: "Arena: agent завершил ход",
+      message: "Появилась панель оценки результата.",
+      contextMessage: details.title || "Arena Agent",
+      priority: 2,
+      requireInteraction: false,
+      silent: true
+    });
+  } catch (error) {
+    await chrome.storage.session.remove(key);
+    throw error;
+  }
 }
 
 async function handleCompletion(details, tab) {
