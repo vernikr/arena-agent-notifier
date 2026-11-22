@@ -4,7 +4,7 @@
   font-size: 13px;
 }
 body {
-  width: 310px;
+  width: 330px;
   margin: 0;
   color: #24262b;
   background: #fff;
@@ -39,7 +39,15 @@ button {
   cursor: pointer;
 }
 button:hover { background: #454fd0; }
-#status { margin-top: 12px; text-align: center; }
+button:disabled { opacity: .6; cursor: wait; }
+#status {
+  margin-top: 12px;
+  color: #626875;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 @media (prefers-color-scheme: dark) {
   body { color: #f1f2f5; background: #202127; }
   .setting { border-color: #383a43; }
