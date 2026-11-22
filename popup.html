@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arena Agent Turn Notifier</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <div class="heading">
+      <img src="icons/icon-48.png" alt="">
+      <div>
+        <h1>Arena notifications</h1>
+        <p>Alert when an agent finishes a turn</p>
+      </div>
+    </div>
+
+    <label class="setting">
+      <span><strong>Browser notification</strong><small>Show a system notification</small></span>
+      <input id="notifications" type="checkbox">
+    </label>
+    <label class="setting">
+      <span><strong>Sound</strong><small>Play a short three-note chime</small></span>
+      <input id="sound" type="checkbox">
+    </label>
+
+    <button id="test" type="button">Test notification and sound</button>
+    <p id="status" role="status" aria-live="polite">Watching Arena agent pages</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
