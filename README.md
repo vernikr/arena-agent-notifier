@@ -11,7 +11,7 @@ On `https://arena.ai/agent/*`, the extension watches for the review panel contai
 - `No`
 - `Keep working`
 
-It uses visible text and the panel's button labels instead of Arena's generated CSS classes. Each appearance triggers one notification and, when enabled, a short three-note chime.
+It uses visible text and the panel's button labels instead of Arena's generated CSS classes. Detection runs through microtasks rather than animation frames, so it also works while the Arena tab is in the background. Each appearance triggers one notification and, when enabled, a short three-note chime.
 
 ## Features
 

@@ -53,7 +53,9 @@
   function scheduleScan() {
     if (scheduled) return;
     scheduled = true;
-    requestAnimationFrame(scan);
+    // requestAnimationFrame is paused in background tabs. A microtask runs
+    // after the MutationObserver callback even when this tab is not visible.
+    queueMicrotask(scan);
   }
 
   const observer = new MutationObserver(scheduleScan);
