@@ -173,21 +173,34 @@
     return null;
   }
 
+  // Visible deployment marker: page scripts and automation can read
+  // `document.documentElement.dataset` to verify which content script is active.
+  const ERROR_TEXT_MAX_LENGTH = 500;
+  if (document.documentElement) {
+    document.documentElement.dataset.arenaNotifierErrorAlerts = "1";
+  }
+
   // Returns the outermost visible error banner. Arena renders failures as a
   // red `role="alert"` block ("Something went wrong. Please try again." and
-  // similar texts); a red-background banner is accepted as a fallback in case
-  // the role attribute is missing. Banners nested inside the completion panel
-  // or the question card are skipped to avoid double alerts.
+  // similar texts); a red banner is accepted as a fallback in case the role
+  // attribute is missing. Banners nested inside (or wrapping) the completion
+  // panel or the question card are skipped to avoid double alerts.
   function findErrorBlock(excluded) {
-    const candidates = document.querySelectorAll('[role="alert"], [class*="bg-red-500"]');
+    const candidates = document.querySelectorAll(
+      '[role="alert"], [class*="bg-red-500"][class*="border-red-500"]'
+    );
 
     for (const candidate of candidates) {
       if (!isVisible(candidate)) continue;
+      if (candidate.matches?.("button, input, textarea, select, a")) continue;
       if (candidate.parentElement?.closest('[role="alert"], [class*="bg-red-500"]')) continue;
-      if (excluded.some((root) => root && root.contains(candidate))) continue;
+      if (excluded.some(
+        (root) => root && (root.contains(candidate) || candidate.contains(root))
+      )) continue;
 
       const text = String(candidate.textContent || "").replace(/\s+/g, " ").trim();
-      if (text.length < 8 || isControlLabel(text)) continue;
+      if (text.length < 8 || text.length > ERROR_TEXT_MAX_LENGTH) continue;
+      if (isControlLabel(text)) continue;
       return { element: candidate, text };
     }
     return null;
@@ -220,6 +233,10 @@
       } else if (kind === "error") {
         notifiedForCurrentError = true;
         lastErrorKey = payload.errorKey;
+        if (document.documentElement) {
+          document.documentElement.dataset.arenaNotifierLastError =
+            String(payload.error || "").slice(0, 200);
+        }
       } else {
         notifiedForCurrentPanel = true;
       }
