@@ -22,6 +22,9 @@
   let lastQuestionKey = "";
   let panelMissingSince = 0;
   let questionMissingSince = 0;
+  let notifiedForCurrentError = false;
+  let lastErrorKey = "";
+  let errorMissingSince = 0;
   let lastUrl = location.href;
   const inFlight = new Set();
 
@@ -170,6 +173,26 @@
     return null;
   }
 
+  // Returns the outermost visible error banner. Arena renders failures as a
+  // red `role="alert"` block ("Something went wrong. Please try again." and
+  // similar texts); a red-background banner is accepted as a fallback in case
+  // the role attribute is missing. Banners nested inside the completion panel
+  // or the question card are skipped to avoid double alerts.
+  function findErrorBlock(excluded) {
+    const candidates = document.querySelectorAll('[role="alert"], [class*="bg-red-500"]');
+
+    for (const candidate of candidates) {
+      if (!isVisible(candidate)) continue;
+      if (candidate.parentElement?.closest('[role="alert"], [class*="bg-red-500"]')) continue;
+      if (excluded.some((root) => root && root.contains(candidate))) continue;
+
+      const text = String(candidate.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.length < 8 || isControlLabel(text)) continue;
+      return { element: candidate, text };
+    }
+    return null;
+  }
+
   function stopBecauseContextWasInvalidated(error) {
     if (stopped) return;
     stopped = true;
@@ -194,6 +217,9 @@
       if (kind === "question") {
         notifiedForCurrentQuestion = true;
         lastQuestionKey = payload.questionKey;
+      } else if (kind === "error") {
+        notifiedForCurrentError = true;
+        lastErrorKey = payload.errorKey;
       } else {
         notifiedForCurrentPanel = true;
       }
@@ -210,9 +236,8 @@
         if (response.errors?.length) {
           console.error("[Arena notifier] Alert delivery had errors:", response.errors);
         }
-        console.info(
-          `[Arena notifier] ${kind === "question" ? "Question" : "Completion"} detected; alert dispatched.`
-        );
+        const kindLabel = kind === "question" ? "Question" : kind === "error" ? "Error" : "Completion";
+        console.info(`[Arena notifier] ${kindLabel} detected; alert dispatched.`);
       }).catch((error) => {
         release();
         const message = String(error?.message || error);
@@ -243,6 +268,9 @@
       lastQuestionKey = "";
       panelMissingSince = 0;
       questionMissingSince = 0;
+      notifiedForCurrentError = false;
+      lastErrorKey = "";
+      errorMissingSince = 0;
     }
 
     const panel = findCompletionPanel();
@@ -279,6 +307,26 @@
     } else if (Date.now() - questionMissingSince >= PANEL_RESET_DELAY_MS) {
       notifiedForCurrentQuestion = false;
       lastQuestionKey = "";
+    }
+
+    const error = findErrorBlock([panel, question?.element]);
+    if (error) {
+      errorMissingSince = 0;
+      const key = normalize(error.text);
+      if (!notifiedForCurrentError || key !== lastErrorKey) {
+        dispatchAlert("error", {
+          type: "ARENA_ERROR_SHOWN",
+          error: error.text,
+          errorKey: key,
+          title: document.title || "Arena agent",
+          url: location.href
+        });
+      }
+    } else if (!errorMissingSince) {
+      errorMissingSince = Date.now();
+    } else if (Date.now() - errorMissingSince >= PANEL_RESET_DELAY_MS) {
+      notifiedForCurrentError = false;
+      lastErrorKey = "";
     }
   }
 

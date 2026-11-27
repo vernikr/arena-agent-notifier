@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Arena Agent Turn Notifier",
-  "version": "1.1.0",
-  "description": "Shows a browser notification and plays a chime when an Arena agent finishes a turn or asks a question.",
+  "version": "1.2.0",
+  "description": "Shows a browser notification and plays a chime when an Arena agent finishes a turn, asks a question, or shows an error.",
   "permissions": ["notifications", "offscreen", "storage"],
   "host_permissions": ["https://arena.ai/*"],
   "background": {

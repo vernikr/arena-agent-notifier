@@ -16,7 +16,7 @@ async function ensureOffscreenDocument() {
     creatingOffscreenDocument = chrome.offscreen.createDocument({
       url: "offscreen.html",
       reasons: ["AUDIO_PLAYBACK"],
-      justification: "Play a short sound when an Arena agent turn completes or asks a question."
+      justification: "Play a short sound when an Arena agent turn completes, asks a question, or shows an error."
     }).finally(() => {
       creatingOffscreenDocument = undefined;
     });
@@ -44,6 +44,14 @@ function alertCopy(kind, details) {
     return {
       title: "Arena: агент ждёт ответа",
       message: truncate(details.question, 180) || "Появился вопрос с вариантами ответа.",
+      contextMessage: details.title || "Arena Agent"
+    };
+  }
+
+  if (kind === "error") {
+    return {
+      title: "Arena: ошибка агента",
+      message: truncate(details.error, 180) || "Появился блок с ошибкой.",
       contextMessage: details.title || "Arena Agent"
     };
   }
@@ -206,10 +214,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (
     message?.type === "ARENA_TURN_COMPLETED" ||
     message?.type === "ARENA_QUESTION_ASKED" ||
+    message?.type === "ARENA_ERROR_SHOWN" ||
     message?.type === "TEST_ALERT"
   ) {
     const isTest = message.type === "TEST_ALERT";
-    const kind = message.type === "ARENA_QUESTION_ASKED" ? "question" : "completion";
+    const kind = message.type === "ARENA_QUESTION_ASKED"
+      ? "question"
+      : message.type === "ARENA_ERROR_SHOWN"
+        ? "error"
+        : "completion";
     const details = isTest
       ? { title: "Проверка уведомления", url: "https://arena.ai/agent", isTest: true }
       : message;
